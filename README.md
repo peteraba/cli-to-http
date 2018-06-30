@@ -1,6 +1,6 @@
 # cli-to-http
 
-**FAIR WARNING:** This tool was created to help a legacy application make various HTTP requests easily. If you think you need this tool, you probably don't, cURL and its successors are much better.
+**FAIR WARNING:** This tool was created to help a legacy application make various HTTP requests easily. If you think you need this tool, you're likely wrong. Widely used software like cURL and its successors are much better.
 
 ## How-to use it
 
