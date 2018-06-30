@@ -1,0 +1,2 @@
+0
+Some error. No connection? Software bug?
