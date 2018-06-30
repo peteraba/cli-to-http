@@ -1,0 +1,22 @@
+builds:
+  - binary: cli-to-http
+    main: ./main.go
+    goos:
+      - windows
+      - darwin
+      - linux
+      - freebsd
+    goarch:
+      - 386
+      - amd64
+
+archive:
+  format_overrides:
+    - goos: windows
+      format: zip
+
+release:
+  github:
+    owner: peteraba
+    name: cli-to-http
+  prerelease: true
