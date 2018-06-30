@@ -25,7 +25,6 @@ type options struct {
 
 func main() {
 	o := parseFlags()
-	o.header = http.Header{}
 
 	body, err := read(o)
 	check(err, o, 0)
@@ -67,9 +66,11 @@ func parseFlags() options {
 		o       options
 	)
 
+	o.header = http.Header{}
+
 	flag.StringVar(&o.url, "url", "", "url to send the request to")
 	flag.StringVar(&o.method, "method", "POST", "http method to use")
-	flag.StringVar(&headers, "headers", "", "comma separated list of headers in {key}={value} format")
+	flag.StringVar(&headers, "headers", "", "comma separated list of headers in key:value format. example: Content-Type:application/xml,Accept:application/xml")
 	flag.StringVar(&o.input, "input", "request.txt", "file to read and parse for request data. read stdin if empty is provided")
 	flag.StringVar(&o.output, "output", "response.txt", "file to fill with response data. write to stdout if empty is provided")
 	flag.BoolVar(&o.returnCode, "return_code", false, "exit code will be the same as return code if true. if false the return code will be the first line of the output")
@@ -79,7 +80,7 @@ func parseFlags() options {
 
 	for _, h := range strings.Split(headers, ",") {
 		if h == "" {
-			return o
+			break
 		}
 
 		parts := strings.Split(h, ":")
