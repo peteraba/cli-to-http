@@ -1,8 +1,2 @@
-404
-<html>
-<head><title>404 Not Found</title></head>
-<body bgcolor="white">
-<center><h1>404 Not Found</h1></center>
-<hr><center>nginx/1.13.12</center>
-</body>
-</html>
+500
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><GeneralExceptionResponse xmlns="http://schemas.nav.gov.hu/OSA/1.0/api" xmlns:ns2="http://schemas.nav.gov.hu/OSA/1.0/data"><funcCode>ERROR</funcCode><errorCode>OPERATION_FAILED</errorCode><message>RESTEASY003210: Could not find resource for full path: http://172.24.194.22:20003/external/public/invoiceService/invoice/interface/tokenRequest</message></GeneralExceptionResponse>

@@ -73,19 +73,12 @@ func parseFlags() options {
 	flag.StringVar(&headers, "headers", "", "comma separated list of headers in key:value format. example: Content-Type:application/xml,Accept:application/xml")
 	flag.StringVar(&o.input, "input", "request.txt", "file to read and parse for request data. read stdin if empty is provided")
 	flag.StringVar(&o.output, "output", "response.txt", "file to fill with response data. write to stdout if empty is provided")
-	flag.BoolVar(&o.returnCode, "return_code", false, "exit code will be the same as return code if true. if false the return code will be the first line of the output")
+	flag.BoolVar(&o.returnCode, "exit_as_return_code", false, "exit code will be the same as return code if true. if false the return code will be the first line of the output")
 	flag.BoolVar(&o.verbose, "verbose", false, "output debugging information on standard output")
 
 	flag.Parse()
 
-	for _, h := range strings.Split(headers, ",") {
-		if h == "" {
-			break
-		}
-
-		parts := strings.Split(h, ":")
-		o.header.Add(parts[0], parts[1])
-	}
+	o = addHeaders(o, headers)
 
 	return o
 }
@@ -116,40 +109,51 @@ func read(o options) ([]byte, error) {
 }
 
 func parseInput(o options, body []byte) (options, []byte, error) {
-	var bodyFrom int
+	var (
+		bodyFrom int
+		line string
+	)
 
 	lines := strings.Split(string(body), "\n")
-	if len(lines) == 0 {
-		return o, []byte{}, nil
-	}
 
-	if o.url == "" {
-		o.url = lines[0]
-		bodyFrom += 1
-	}
-	if len(lines) == bodyFrom {
-		return o, []byte{}, nil
-	}
-
-	if o.method == "POST" && (lines[bodyFrom] == "GET" || lines[bodyFrom] == "PUT" || lines[bodyFrom] == "PATCH" || lines[bodyFrom] == "DELETE") {
-		o.url = lines[0]
-		bodyFrom += 1
-	}
-
-	for {
-		if len(lines) == bodyFrom {
-			return o, []byte{}, nil
-		}
-
-		r := regexp.MustCompile("^([a-zA-Z0-9/-]+)=([a-zA-Z0-9/-]+)$")
-		if !r.MatchString(lines[bodyFrom]) {
+	r := regexp.MustCompile("^([A-Z]+)=([a-zA-Z0-9.,: /-]+)$")
+	for bodyFrom, line = range lines {
+		matches := r.FindStringSubmatch(line)
+		fmt.Printf("line: %s, matches: %v\n", line, matches)
+		if len(matches) == 0 {
 			break
 		}
 
-		parts := strings.Split(lines[bodyFrom], "=")
-		o.header.Add(parts[0], parts[1])
+		doubleBreak := false
+		switch matches[1] {
+		case "URL":
+			o.url = matches[2]
+			break;
+		case "METHOD":
+			o.method = matches[2]
+			break;
+		case "HEADERS":
+			o = addHeaders(o, matches[2])
+			break;
+		case "EXIT_AS_RETURN_CODE":
+			o.returnCode = false
+			if matches[2] == "1" || strings.ToLower(matches[2]) == "true" {
+				o.returnCode = true
+			}
+			break;
+		case "VERBOSE":
+			o.verbose = false
+			if matches[2] == "1" || strings.ToLower(matches[2]) == "true" {
+				o.verbose = true
+			}
+			break;
+		default:
+			doubleBreak = true
+		}
 
-		bodyFrom += 1
+		if doubleBreak {
+			break;
+		}
 	}
 
 	str := strings.Join(lines[bodyFrom:], "\n")
@@ -162,7 +166,7 @@ func write(o options, code int, resp []byte) error {
 		resp = []byte(fmt.Sprintf("%d\n%s", code, string(resp)))
 	}
 	if o.output == "" {
-
+		fmt.Println(string(resp))
 	}
 	return ioutil.WriteFile(o.output, resp, 0644)
 }
@@ -184,6 +188,19 @@ func makeRequest(method, url string, b []byte, header http.Header) (int, []byte,
 	return resp.StatusCode, body, err
 }
 
+func addHeaders(o options, headers string) options {
+	for _, h := range strings.Split(headers, ",") {
+		if h == "" {
+			break
+		}
+
+		parts := strings.Split(h, ":")
+		o.header.Add(parts[0], parts[1])
+	}
+
+	return o
+}
+
 func printInput(verbose bool, input, method, url string, req []byte, header http.Header) {
 	if !verbose {
 		return
@@ -194,11 +211,11 @@ func printInput(verbose bool, input, method, url string, req []byte, header http
 	fmt.Printf("Request file: %s\n", input)
 	fmt.Printf("HTTP Method: %s\n", method)
 	fmt.Printf("URL: %s\n", url)
+	fmt.Printf("Header: %s\n", header)
 	fmt.Printf("Request Body:\n")
 	if len(req) > 0 {
 		fmt.Printf("%s\n", string(req))
 	}
-	fmt.Printf("Header: %s\n", header)
 	fmt.Println()
 }
 
