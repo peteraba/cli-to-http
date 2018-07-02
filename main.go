@@ -33,6 +33,9 @@ func main() {
 	printInput(o.verbose, o.input, o.method, o.url, body, o.header)
 
 	if o.url == "" {
+		if o.verbose {
+			printFirstLineChars(body)
+		}
 		check(errors.New("URL must be provided"), o, 0)
 	}
 
@@ -116,10 +119,9 @@ func parseInput(o options, body []byte) (options, []byte, error) {
 
 	lines := strings.Split(string(body), "\n")
 
-	r := regexp.MustCompile("^([A-Z]+)=([a-zA-Z0-9.,: /-]+)$")
+	r := regExp()
 	for bodyFrom, line = range lines {
 		matches := r.FindStringSubmatch(line)
-		fmt.Printf("line: %s, matches: %v\n", line, matches)
 		if len(matches) == 0 {
 			break
 		}
@@ -233,4 +235,25 @@ func printOutput(verbose bool, output string, code int, resp []byte) {
 		fmt.Printf("%s\n", string(resp))
 	}
 	fmt.Println()
+}
+
+func printFirstLineChars(body []byte) {
+	lines := strings.Split(string(body), "\n")
+
+	r := regExp()
+	for _, line := range lines {
+		matches := r.FindStringSubmatch(line)
+		if len(matches) == 0 {
+			break
+		}
+
+		fmt.Println(line)
+		for i, elem := range line {
+			fmt.Println(i, elem, string(elem))
+		}
+	}
+}
+
+func regExp() *regexp.Regexp {
+	return regexp.MustCompile("([A-Z_]+)=([a-zA-Z0-9.,: /-]+)\\s*$")
 }
