@@ -22,7 +22,9 @@ func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
 	return (*ecbEncrypter)(newECB(b))
 }
 
-func (x *ecbEncrypter) BlockSize() int { return x.blockSize }
+func (x *ecbEncrypter) BlockSize() int {
+	return x.blockSize
+}
 
 func (x *ecbEncrypter) CryptBlocks(dst, src []byte) {
 	if len(src)%x.blockSize != 0 {

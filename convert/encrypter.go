@@ -6,14 +6,38 @@ import (
 )
 
 type BlockEncrypter struct {
-	blockMode cipher.BlockMode
+	encrypter cipher.BlockMode
+	decrypter cipher.BlockMode
 	padder    Padder
+}
+
+func (be BlockEncrypter) Encrypt(data []byte) []byte {
+	if be.padder != nil {
+		data = be.padder.Add(data)
+	}
+
+	encryptedData := make([]byte, len(data))
+	be.encrypter.CryptBlocks(encryptedData, data)
+
+	return encryptedData
+}
+
+func (be BlockEncrypter) Decrypt(encryptedData []byte) []byte {
+	data := make([]byte, len(encryptedData))
+	be.decrypter.CryptBlocks(data, encryptedData)
+
+	if be.padder != nil {
+		data = be.padder.Remove(data)
+	}
+
+	return data
 }
 
 func NewBlockEncrypter(key []byte, cipherType, encrypterType, paddingType string) *BlockEncrypter {
 	var (
 		block     cipher.Block
-		blockMode cipher.BlockMode
+		encrypter cipher.BlockMode
+		decrypter cipher.BlockMode
 		err       error
 		padder    Padder
 	)
@@ -30,7 +54,8 @@ func NewBlockEncrypter(key []byte, cipherType, encrypterType, paddingType string
 
 	switch encrypterType {
 	case "ECB":
-		blockMode = NewECBEncrypter(block)
+		encrypter = NewECBEncrypter(block)
+		decrypter = NewECBDecrypter(block)
 	default:
 		panic("Encrypter type not recognized: " + encrypterType)
 	}
@@ -42,27 +67,5 @@ func NewBlockEncrypter(key []byte, cipherType, encrypterType, paddingType string
 		panic("Padding type not recognized: " + paddingType)
 	}
 
-	return &BlockEncrypter{blockMode: blockMode, padder: padder}
-}
-
-func (be BlockEncrypter) Encrypt(data []byte) []byte {
-	if be.padder != nil {
-		data = be.padder.Add(data)
-	}
-
-	encryptedData := make([]byte, len(data))
-	be.blockMode.CryptBlocks(encryptedData, data)
-
-	return encryptedData
-}
-
-func (be BlockEncrypter) Decrypt(encryptedData []byte) []byte {
-	data := make([]byte, len(encryptedData))
-	be.blockMode.CryptBlocks(data, encryptedData)
-
-	if be.padder != nil {
-		data = be.padder.Remove(data)
-	}
-
-	return data
+	return &BlockEncrypter{encrypter: encrypter, decrypter: decrypter, padder: padder}
 }
