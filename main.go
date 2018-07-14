@@ -11,16 +11,26 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"encoding/base64"
+
+	"github.com/peteraba/cli-to-http/convert"
 )
 
 type options struct {
-	url        string
-	method     string
-	header     http.Header
-	input      string
-	output     string
-	returnCode bool
-	verbose    bool
+	url         string
+	method      string
+	header      http.Header
+	input       string
+	output      string
+	returnCode  bool
+	verbose     bool
+	cipherKey   string
+	cipherType  string
+	encryptType string
+	paddingType string
+	encode      string
+	decode      string
 }
 
 func main() {
@@ -39,8 +49,25 @@ func main() {
 		check(errors.New("URL must be provided"), o, 0)
 	}
 
+	var encrypter *convert.BlockEncrypter
+	if o.cipherType != "" {
+		encrypter = convert.NewBlockEncrypter([]byte(o.cipherKey), o.cipherType, o.encryptType, o.paddingType)
+	}
+
+	if o.encode != "" || encrypter != nil {
+		body, err = encodeBody(body, o.encode, encrypter)
+		check(err, o, 0)
+		printInput(o.verbose, o.input, o.method, o.url, body, o.header)
+	}
+
 	code, resp, err := makeRequest(o.method, o.url, body, o.header)
 	check(err, o, code)
+
+	if o.decode != "" || encrypter != nil {
+		resp, err = decodeBody(resp, o.decode, encrypter)
+		check(err, o, 0)
+		printOutput(o.verbose, o.output, code, resp)
+	}
 
 	err = write(o, code, resp)
 	check(err, o, code)
@@ -65,8 +92,9 @@ func check(e error, o options, code int) {
 
 func parseFlags() options {
 	var (
-		headers string
-		o       options
+		headers    string
+		encryption string
+		o          options
 	)
 
 	o.header = http.Header{}
@@ -78,10 +106,15 @@ func parseFlags() options {
 	flag.StringVar(&o.output, "output", "response.txt", "file to fill with response data. write to stdout if empty is provided")
 	flag.BoolVar(&o.returnCode, "exit_as_return_code", false, "exit code will be the same as return code if true. if false the return code will be the first line of the output")
 	flag.BoolVar(&o.verbose, "verbose", false, "output debugging information on standard output")
+	flag.StringVar(&o.cipherKey, "cipher_key", "", "cipher key to use for encryption and decryption")
+	flag.StringVar(&encryption, "encrypt", "", "encryption algorithms to use as listed on https://8gwifi.org/CipherFunctions.jsp. Only AES/ECB/PKCS5PADDING is supported at the moment.")
+	flag.StringVar(&o.encode, "encode", "", "encoding algorithm to apply. will be applied after encryption. Only base64 is supported at the moment")
+	flag.StringVar(&o.decode, "decode", "", "decoding algorithm to apply. will be applied before decryption. Only base64 is supported at the moment")
 
 	flag.Parse()
 
-	o = addHeaders(o, headers)
+	o.header = addHeaders(o.header, headers)
+	o.cipherType, o.encryptType, o.paddingType = splitEncryption(encryption)
 
 	return o
 }
@@ -114,7 +147,7 @@ func read(o options) ([]byte, error) {
 func parseInput(o options, body []byte) (options, []byte, error) {
 	var (
 		bodyFrom int
-		line string
+		line     string
 	)
 
 	lines := strings.Split(string(body), "\n")
@@ -130,31 +163,37 @@ func parseInput(o options, body []byte) (options, []byte, error) {
 		switch matches[1] {
 		case "URL":
 			o.url = matches[2]
-			break;
+			break
 		case "METHOD":
 			o.method = matches[2]
-			break;
+			break
 		case "HEADERS":
-			o = addHeaders(o, matches[2])
-			break;
+			o.header = addHeaders(o.header, matches[2])
+			break
 		case "EXIT_AS_RETURN_CODE":
 			o.returnCode = false
 			if matches[2] == "1" || strings.ToLower(matches[2]) == "true" {
 				o.returnCode = true
 			}
-			break;
+			break
 		case "VERBOSE":
 			o.verbose = false
 			if matches[2] == "1" || strings.ToLower(matches[2]) == "true" {
 				o.verbose = true
 			}
-			break;
+			break
+		case "CIPHER_KEY":
+			o.cipherKey = matches[2]
+			break
+		case "ENCRYPTION":
+			o.cipherType, o.encryptType, o.paddingType = splitEncryption(matches[2])
+			break
 		default:
 			doubleBreak = true
 		}
 
 		if doubleBreak {
-			break;
+			break
 		}
 	}
 
@@ -171,6 +210,35 @@ func write(o options, code int, resp []byte) error {
 		fmt.Println(string(resp))
 	}
 	return ioutil.WriteFile(o.output, resp, 0644)
+}
+
+func encodeBody(body []byte, encode string, encrypter *convert.BlockEncrypter) ([]byte, error) {
+	if encrypter != nil {
+		body = encrypter.Encrypt(body)
+	}
+
+	if encode == "base64" {
+		body = []byte(base64.StdEncoding.EncodeToString(body))
+	}
+
+	return body, nil
+}
+
+func decodeBody(body []byte, decode string, encrypter *convert.BlockEncrypter) ([]byte, error) {
+	var err error
+
+	if encrypter != nil {
+		body = encrypter.Decrypt(body)
+	}
+
+	if decode == "base64" {
+		body, err = base64.StdEncoding.DecodeString(string(body))
+		if err != nil {
+			return []byte{}, err
+		}
+	}
+
+	return body, nil
 }
 
 func makeRequest(method, url string, b []byte, header http.Header) (int, []byte, error) {
@@ -190,17 +258,36 @@ func makeRequest(method, url string, b []byte, header http.Header) (int, []byte,
 	return resp.StatusCode, body, err
 }
 
-func addHeaders(o options, headers string) options {
+func addHeaders(header http.Header, headers string) http.Header {
 	for _, h := range strings.Split(headers, ",") {
 		if h == "" {
 			break
 		}
 
 		parts := strings.Split(h, ":")
-		o.header.Add(parts[0], parts[1])
+		header.Add(parts[0], parts[1])
 	}
 
-	return o
+	return header
+}
+
+func splitEncryption(encryption string) (string, string, string) {
+	parts := strings.Split(encryption, "/")
+	if len(parts) > 2 {
+		p2, l2 := parts[2], len(parts[2])
+		if l2 > 7 && p2[l2-7:] == "PADDING" {
+			return parts[0], parts[1], p2[:l2-7]
+		}
+		return parts[0], parts[1], p2
+	}
+	if len(parts) > 1 {
+		return parts[0], parts[1], ""
+	}
+	if len(parts) > 0 {
+		return parts[0], "", ""
+	}
+
+	return "", "", ""
 }
 
 func printInput(verbose bool, input, method, url string, req []byte, header http.Header) {
