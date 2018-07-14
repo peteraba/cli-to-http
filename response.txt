@@ -1,0 +1,10 @@
+0
+<?xml version="1.0" encoding="UTF-8"?>
+<TokenExchangeRequest xmlns="http://schemas.nav.gov.hu/OSA/1.0/api">
+  <header>
+    <requestId>ZYXWVZYXWVZYXWVZYXWV3900534468</requestId>
+    <timestamp>2018-06-30T19:10:44.175Z</timestamp>
+    <requestVersion>1.0</requestVersion>
+    <headerVersion>1.0</headerVersion>
+  </header>
+</TokenExchangeRequest>

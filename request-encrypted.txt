@@ -1,0 +1,18 @@
+URL=https://api-test.onlineszamla.nav.gov.hu/invoiceService/tokenExchange
+METHOD=POST
+HEADERS=Content-Type:application/xml,Accept:application/xml
+EXIT_AS_RETURN_CODE=1
+VERBOSE=1
+CIPHER_KEY=abcdeABCDE123456
+ENCRYPTION=AES/ECB/PKCS5PADDING
+ENCODE=base64
+DECODE=base64
+<?xml version="1.0" encoding="UTF-8"?>
+<TokenExchangeRequest xmlns="http://schemas.nav.gov.hu/OSA/1.0/api">
+  <header>
+    <requestId>ZYXWVZYXWVZYXWVZYXWV3900534468</requestId>
+    <timestamp>2018-06-30T19:10:44.175Z</timestamp>
+    <requestVersion>1.0</requestVersion>
+    <headerVersion>1.0</headerVersion>
+  </header>
+</TokenExchangeRequest>
