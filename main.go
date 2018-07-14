@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,8 +12,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"encoding/base64"
 
 	"github.com/peteraba/cli-to-http/convert"
 )
