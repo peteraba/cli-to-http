@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/peteraba/cli-to-http/convert"
+	"hash/crc32"
 )
 
 type options struct {
@@ -58,7 +59,7 @@ func collectOptions() (options, []byte) {
 	check(err, o, 0)
 
 	printOptions(o)
-	printInput(o.verbose, o.input, o.method, o.url, body, o.header, false)
+	printInput(o.verbose, o.input, o.method, o.url, body, o.header, []string{}, false)
 
 	return o, body
 }
@@ -74,20 +75,35 @@ func getEncrypter(o options) *convert.BlockEncrypter {
 func encryptEncode(o options, encrypter *convert.BlockEncrypter, body []byte) []byte {
 	var err error
 
-	if o.encode == "" || encrypter == nil {
+	extra := []string{fmt.Sprintf(`Original: "%s"\n`, string(body))}
+	body = []byte(strings.TrimSpace(string(body)))
+
+	if o.encode == "" && encrypter == nil {
 		return body
 	}
+
+	extra = append(extra, fmt.Sprintf(`Trimmed: "%s"\n`, string(body)))
 
 	if encrypter != nil {
 		body = encrypter.Encrypt(body)
 	}
 
-	if o.encode == "base64" {
-		body = []byte(base64.StdEncoding.EncodeToString(body))
+	encodings := strings.Split(o.encode, ",")
+	for _, encoding := range encodings {
+		switch encoding {
+		case "base64":
+			body = []byte(base64.StdEncoding.EncodeToString(body))
+			extra = append(extra, fmt.Sprintf(`Base64 encoded: "%s"\n`, string(body)))
+			break
+		case "crc32":
+			body = []byte(fmt.Sprint(crc32.ChecksumIEEE([]byte(body))))
+			extra = append(extra, fmt.Sprintf(`Crc32 checksum: "%s"\n`, string(body)))
+			break
+		}
 	}
 
 	check(err, o, 0)
-	printInput(o.verbose, o.input, o.method, o.url, body, o.header, true)
+	printInput(o.verbose, o.input, o.method, o.url, body, o.header, extra, true)
 
 	return body
 }
@@ -117,12 +133,11 @@ func handleRequest(o options, body []byte) (int, []byte) {
 func decodeDecrypt(o options, encrypter *convert.BlockEncrypter, code int, resp []byte) []byte {
 	var err error
 
-	if o.decode == "" || encrypter == nil {
+	if o.decode == "" && encrypter == nil {
 		return resp
 	}
 
-	str := strings.Trim(string(resp), " \t\n\r")
-	resp = []byte(str)
+	resp = []byte(strings.TrimSpace(string(resp)))
 
 	printOutput(o.verbose, o.output, code, resp, true)
 
@@ -180,7 +195,7 @@ func parseFlags() options {
 	flag.BoolVar(&o.verbose, "verbose", false, "output debugging information on standard output")
 	flag.StringVar(&o.cipherKey, "cipher_key", "", "cipher key to use for encryption and decryption")
 	flag.StringVar(&encryption, "encrypt", "", "encryption algorithms to use as listed on https://8gwifi.org/CipherFunctions.jsp. Only AES/ECB/PKCS5PADDING is supported at the moment.")
-	flag.StringVar(&o.encode, "encode", "", "encoding algorithm to apply. will be applied after encryption. Only base64 is supported at the moment")
+	flag.StringVar(&o.encode, "encode", "", "comma separated encoding algorithms to apply. will be applied after encryption. Only base64 and crc32 are supported at the moment")
 	flag.StringVar(&o.decode, "decode", "", "decoding algorithm to apply. will be applied before decryption. Only base64 is supported at the moment")
 
 	flag.Parse()
@@ -356,7 +371,7 @@ func printOptions(o options) {
 	fmt.Println()
 }
 
-func printInput(verbose bool, input, method, url string, req []byte, header http.Header, encoded bool) {
+func printInput(verbose bool, input, method, url string, req []byte, header http.Header, extra []string, encoded bool) {
 	if !verbose {
 		return
 	}
@@ -375,6 +390,16 @@ func printInput(verbose bool, input, method, url string, req []byte, header http
 	if len(req) > 0 {
 		fmt.Printf("%s\n", string(req))
 	}
+
+	if len(extra) > 0 {
+		fmt.Println()
+		fmt.Printf("Extra encoding info\n")
+		fmt.Printf("----------\n")
+	}
+	for _, e := range extra {
+		fmt.Println(e)
+	}
+
 	fmt.Println()
 }
 
