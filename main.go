@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
+	"hash/crc32"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -15,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/peteraba/cli-to-http/convert"
-	"hash/crc32"
 )
 
 type options struct {
@@ -98,6 +100,20 @@ func encryptEncode(o options, encrypter *convert.BlockEncrypter, body []byte) []
 		case "crc32":
 			body = []byte(fmt.Sprint(crc32.ChecksumIEEE([]byte(body))))
 			extra = append(extra, fmt.Sprintf(`Crc32 checksum: "%s"\n`, string(body)))
+			break
+		case "sha512":
+			h := sha512.New()
+			h.Write([]byte(body))
+			b := h.Sum(nil)
+			body = []byte(fmt.Sprintf("%x", string(b)))
+			extra = append(extra, fmt.Sprintf(`Sha512 hash: "%s"\n`, string(body)))
+			break
+		case "sha256":
+			h := sha256.New()
+			h.Write([]byte(body))
+			b := h.Sum(nil)
+			body = []byte(fmt.Sprintf("%x", string(b)))
+			extra = append(extra, fmt.Sprintf(`Sha256 hash: "%s"\n`, string(body)))
 			break
 		}
 	}
@@ -195,7 +211,7 @@ func parseFlags() options {
 	flag.BoolVar(&o.verbose, "verbose", false, "output debugging information on standard output")
 	flag.StringVar(&o.cipherKey, "cipher_key", "", "cipher key to use for encryption and decryption")
 	flag.StringVar(&encryption, "encrypt", "", "encryption algorithms to use as listed on https://8gwifi.org/CipherFunctions.jsp. Only AES/ECB/PKCS5PADDING is supported at the moment.")
-	flag.StringVar(&o.encode, "encode", "", "comma separated encoding algorithms to apply. will be applied after encryption. Only base64 and crc32 are supported at the moment")
+	flag.StringVar(&o.encode, "encode", "", "comma separated encoding algorithms to apply. will be applied after encryption. base64, crc32, sha256 and sha512 are supported at the moment")
 	flag.StringVar(&o.decode, "decode", "", "decoding algorithm to apply. will be applied before decryption. Only base64 is supported at the moment")
 
 	flag.Parse()

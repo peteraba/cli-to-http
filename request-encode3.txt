@@ -1,0 +1,5 @@
+MODE=encode
+ENCODE=sha512
+VERBOSE=1
+EXIT_AS_RETURN_CODE=1
+hello world
