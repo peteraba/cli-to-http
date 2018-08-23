@@ -77,12 +77,12 @@ func getEncrypter(o options) *convert.BlockEncrypter {
 func encryptEncode(o options, encrypter *convert.BlockEncrypter, body []byte) []byte {
 	var err error
 
-	extra := []string{fmt.Sprintf(`Original: "%s"\n`, string(body))}
-	body = []byte(strings.TrimSpace(string(body)))
-
-	if o.encode == "" && encrypter == nil {
+	if o.mode == "decode" || o.encode == "" && encrypter == nil {
 		return body
 	}
+
+	extra := []string{fmt.Sprintf(`Original: "%s"\n`, string(body))}
+	body = []byte(strings.TrimSpace(string(body)))
 
 	extra = append(extra, fmt.Sprintf(`Trimmed: "%s"\n`, string(body)))
 
@@ -149,7 +149,7 @@ func handleRequest(o options, body []byte) (int, []byte) {
 func decodeDecrypt(o options, encrypter *convert.BlockEncrypter, code int, resp []byte) []byte {
 	var err error
 
-	if o.decode == "" && encrypter == nil {
+	if o.mode == "encode" || o.decode == "" && encrypter == nil {
 		return resp
 	}
 

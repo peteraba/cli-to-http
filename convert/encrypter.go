@@ -23,6 +23,10 @@ func (be BlockEncrypter) Encrypt(data []byte) []byte {
 }
 
 func (be BlockEncrypter) Decrypt(encryptedData []byte) []byte {
+	if len(encryptedData) == 0 {
+		return encryptedData
+	}
+
 	data := make([]byte, len(encryptedData))
 	be.decrypter.CryptBlocks(data, encryptedData)
 

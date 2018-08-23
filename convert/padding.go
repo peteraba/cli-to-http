@@ -20,6 +20,9 @@ func (p PKCS5) Add(origContent []byte) []byte {
 
 func (p PKCS5) Remove(paddedContent []byte) []byte {
 	paddedLength := len(paddedContent)
+	if paddedLength == 0 {
+		return paddedContent
+	}
 	paddingLength := int(paddedContent[paddedLength-1])
 	return paddedContent[:(paddedLength - paddingLength)]
 }

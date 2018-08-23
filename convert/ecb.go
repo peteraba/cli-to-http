@@ -57,9 +57,8 @@ func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
-	for len(src) > 0 {
-		x.b.Decrypt(dst, src[:x.blockSize])
-		src = src[x.blockSize:]
-		dst = dst[x.blockSize:]
-	}
+
+	x.b.Decrypt(dst, src[:x.blockSize])
+	src = src[x.blockSize:]
+	dst = dst[x.blockSize:]
 }
