@@ -22,21 +22,21 @@ func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
 	return (*ecbEncrypter)(newECB(b))
 }
 
-func (x *ecbEncrypter) BlockSize() int {
-	return x.blockSize
+func (e *ecbEncrypter) BlockSize() int {
+	return e.blockSize
 }
 
-func (x *ecbEncrypter) CryptBlocks(dst, src []byte) {
-	if len(src)%x.blockSize != 0 {
+func (e *ecbEncrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%e.blockSize != 0 {
 		panic("crypto/cipher: input not full blocks")
 	}
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
 	for len(src) > 0 {
-		x.b.Encrypt(dst, src[:x.blockSize])
-		src = src[x.blockSize:]
-		dst = dst[x.blockSize:]
+		e.b.Encrypt(dst, src[:e.blockSize])
+		src = src[e.blockSize:]
+		dst = dst[e.blockSize:]
 	}
 }
 
@@ -46,19 +46,21 @@ func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return (*ecbDecrypter)(newECB(b))
 }
 
-func (x *ecbDecrypter) BlockSize() int {
-	return x.blockSize
+func (d *ecbDecrypter) BlockSize() int {
+	return d.blockSize
 }
 
-func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
-	if len(src)%x.blockSize != 0 {
+func (d *ecbDecrypter) CryptBlocks(dst, src []byte) {
+	if len(src)%d.blockSize != 0 {
 		panic("crypto/cipher: input not full blocks")
 	}
 	if len(dst) < len(src) {
 		panic("crypto/cipher: output smaller than input")
 	}
 
-	x.b.Decrypt(dst, src[:x.blockSize])
-	src = src[x.blockSize:]
-	dst = dst[x.blockSize:]
+	for len(src) > 0 {
+		d.b.Decrypt(dst, src[:d.blockSize])
+		src = src[d.blockSize:]
+		dst = dst[d.blockSize:]
+	}
 }

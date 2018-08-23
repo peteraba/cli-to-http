@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/peteraba/cli-to-http/convert"
+	hex2 "encoding/hex"
 )
 
 type options struct {
@@ -153,13 +154,19 @@ func decodeDecrypt(o options, encrypter *convert.BlockEncrypter, code int, resp 
 		return resp
 	}
 
-	resp = []byte(strings.TrimSpace(string(resp)))
+	trimmed := strings.TrimSpace(string(resp))
+	resp = []byte(trimmed)
 
 	printOutput(o.verbose, o.output, code, resp, true)
 
 	if o.decode == "base64" {
-		resp, err = base64.StdEncoding.DecodeString(string(resp))
+		resp, err = base64.StdEncoding.DecodeString(trimmed)
+
+		hex := hex2.Dump(resp)
+
+		printOutput(o.verbose, o.output, code, []byte(hex), true)
 	}
+
 
 	if encrypter != nil {
 		resp = encrypter.Decrypt(resp)
